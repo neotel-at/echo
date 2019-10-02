@@ -595,6 +595,7 @@ func TestRouterMatchAnyMultiLevel(t *testing.T) {
 	// Routes
 	r.Add(http.MethodGet, "/api/users/jack", handler)
 	r.Add(http.MethodGet, "/api/users/jill", handler)
+	r.Add(http.MethodGet, "/api/*", handler)
 	r.Add(http.MethodGet, "/*", handler)
 
 	c := e.NewContext(nil, nil).(*context)
@@ -607,6 +608,10 @@ func TestRouterMatchAnyMultiLevel(t *testing.T) {
 	assert.Equal(t, "/api/users/jill", c.Get("path"))
 
 	r.Find(http.MethodGet, "/api/users/joe", c)
+	c.handler(c)
+	assert.Equal(t, "/api/*", c.Get("path"))
+
+	r.Find(http.MethodGet, "/noapi/users/jim", c)
 	c.handler(c)
 	assert.Equal(t, "/*", c.Get("path"))
 }
@@ -702,6 +707,15 @@ func TestRouterPriority(t *testing.T) {
 		c.Set("g", 7)
 		return nil
 	})
+	r.Add(http.MethodGet, "/users/new/*", func(c Context) error {
+		c.Set("h", 8)
+		return nil
+	})
+	r.Add(http.MethodGet, "/*", func(c Context) error {
+		c.Set("i", 9)
+		return nil
+	})
+
 	c := e.NewContext(nil, nil).(*context)
 
 	// Route > /users
@@ -734,11 +748,46 @@ func TestRouterPriority(t *testing.T) {
 	c.handler(c)
 	assert.Equal(t, 3, c.Get("c"))
 
+	// Route > /users/newsee
+	r.Find(http.MethodGet, "/users/newsee", c)
+	c.handler(c)
+	assert.Equal(t, 6, c.Get("f"))
+
 	// Route > /users/*
 	r.Find(http.MethodGet, "/users/joe/books", c)
 	c.handler(c)
 	assert.Equal(t, 7, c.Get("g"))
 	assert.Equal(t, "joe/books", c.Param("*"))
+
+	// Route > /users/new/* should be matched
+	r.Find(http.MethodGet, "/users/new/someone", c)
+	c.handler(c)
+	assert.Equal(t, 8, c.Get("h"))
+	assert.Equal(t, "someone", c.Param("*"))
+
+	// Route > /users/* should be matched although /users/dew exists
+	r.Find(http.MethodGet, "/users/dew/someone", c)
+	c.handler(c)
+	assert.Equal(t, 7, c.Get("g"))
+	assert.Equal(t, "dew/someone", c.Param("*"))
+
+	// Route > /users/* should be matched although /users/dew exists
+	r.Find(http.MethodGet, "/users/notexists/someone/else", c)
+	c.handler(c)
+	assert.Equal(t, 7, c.Get("g"))
+	assert.Equal(t, "notexists/someone/else", c.Param("*"))
+
+	// Route > *
+	r.Find(http.MethodGet, "/nousers", c)
+	c.handler(c)
+	assert.Equal(t, 9, c.Get("i"))
+	assert.Equal(t, "nousers", c.Param("*"))
+
+	// Route > *
+	r.Find(http.MethodGet, "/nousers/new", c)
+	c.handler(c)
+	assert.Equal(t, 9, c.Get("i"))
+	assert.Equal(t, "nousers/new", c.Param("*"))
 }
 
 func TestRouterIssue1348(t *testing.T) {
