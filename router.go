@@ -1,6 +1,9 @@
 package echo
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 type (
 	// Router is the registry of all registered routes for an `Echo` instance for
@@ -399,17 +402,22 @@ func (r *Router) Find(method, path string, c Context) {
 			if nn != nil {
 				// No next node to go down in routing (issue #954)
 				// Find nearest "any" route going up the routing tree
-				cn = nn
 				search = ns
+				np := nn.parent
+				// Consider param route one level up only
+				// if no slash is remaining in search string
+				if cn = nn.findChildByKind(pkind); cn != nil && strings.IndexByte(ns, '/') == -1 {
+					break
+				}
 				for {
-					nn = cn.parent
-					if cn = cn.findChildByKind(akind); cn != nil {
+					np = nn.parent
+					if cn = nn.findChildByKind(akind); cn != nil {
 						break
 					}
-					if nn == nil {
+					if np == nil {
 						break // no further parent nodes in tree, abort
 					}
-					cn = nn
+					nn = np
 				}
 				if cn != nil { // use the found "any" route and update path
 					pvalues[len(cn.pnames)-1] = search
