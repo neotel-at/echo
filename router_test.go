@@ -595,25 +595,41 @@ func TestRouterMatchAnyMultiLevel(t *testing.T) {
 	// Routes
 	r.Add(http.MethodGet, "/api/users/jack", handler)
 	r.Add(http.MethodGet, "/api/users/jill", handler)
+	r.Add(http.MethodGet, "/api/users/*", handler)
 	r.Add(http.MethodGet, "/api/*", handler)
+	r.Add(http.MethodGet, "/other/*", handler)
 	r.Add(http.MethodGet, "/*", handler)
 
 	c := e.NewContext(nil, nil).(*context)
 	r.Find(http.MethodGet, "/api/users/jack", c)
 	c.handler(c)
 	assert.Equal(t, "/api/users/jack", c.Get("path"))
+	assert.Equal(t, "", c.Param("*"))
 
 	r.Find(http.MethodGet, "/api/users/jill", c)
 	c.handler(c)
 	assert.Equal(t, "/api/users/jill", c.Get("path"))
+	assert.Equal(t, "", c.Param("*"))
 
 	r.Find(http.MethodGet, "/api/users/joe", c)
 	c.handler(c)
+	assert.Equal(t, "/api/users/*", c.Get("path"))
+	assert.Equal(t, "joe", c.Param("*"))
+
+	r.Find(http.MethodGet, "/api/nousers/joe", c)
+	c.handler(c)
 	assert.Equal(t, "/api/*", c.Get("path"))
+	assert.Equal(t, "nousers/joe", c.Param("*"))
+
+	r.Find(http.MethodGet, "/api/none", c)
+	c.handler(c)
+	assert.Equal(t, "/api/*", c.Get("path"))
+	assert.Equal(t, "none", c.Param("*"))
 
 	r.Find(http.MethodGet, "/noapi/users/jim", c)
 	c.handler(c)
 	assert.Equal(t, "/*", c.Get("path"))
+	assert.Equal(t, "noapi/users/jim", c.Param("*"))
 }
 
 func TestRouterMicroParam(t *testing.T) {

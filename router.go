@@ -20,8 +20,8 @@ type (
 		pnames        []string
 		methodHandler *methodHandler
 	}
-	kind uint8
-	children []*node
+	kind          uint8
+	children      []*node
 	methodHandler struct {
 		connect  HandlerFunc
 		delete   HandlerFunc
@@ -336,7 +336,6 @@ func (r *Router) Find(method, path string, c Context) {
 			}
 		}
 
-
 		if l == pl {
 			// Continue search
 			search = search[l:]
@@ -398,16 +397,23 @@ func (r *Router) Find(method, path string, c Context) {
 	Any:
 		if cn = cn.findChildByKind(akind); cn == nil {
 			if nn != nil {
+				// No next node to go down in routing (issue #954)
+				// Find nearest "any" route going up the routing tree
 				cn = nn
-				nn = cn.parent // Next (Issue #954)
-				if nn != nil {
-					nk = nn.kind
-				}
 				search = ns
-				if nk == pkind {
-					goto Param
-				} else if nk == akind {
-					goto Any
+				for {
+					nn = cn.parent
+					if cn = cn.findChildByKind(akind); cn != nil {
+						break
+					}
+					if nn == nil {
+						break // no further parent nodes in tree, abort
+					}
+					cn = nn
+				}
+				if cn != nil { // use the found "any" route and update path
+					pvalues[len(cn.pnames)-1] = search
+					break
 				}
 			}
 			return // Not found
