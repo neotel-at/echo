@@ -640,6 +640,28 @@ func TestRouterMatchAnyMultiLevel(t *testing.T) {
 	assert.Equal(t, "/*", c.Get("path"))
 	assert.Equal(t, "noapi/users/jim", c.Param("*"))
 }
+func TestRouterMatchAnyMultiLevel2(t *testing.T) {
+	e := New()
+	r := e.router
+	handler := func(c Context) error {
+		c.Set("path", c.Path())
+		return nil
+	}
+
+	// Routes
+	// e.GET("/api/auth/login", handler)
+	e.POST("/api/auth/login", handler)
+	e.POST("/api/auth/forgotPassword", handler)
+	e.Any("/api/*", handler)
+	e.Any("/*", handler)
+
+	c := e.NewContext(nil, nil).(*context)
+	r.Find(http.MethodPost, "/api/auth/logout", c)
+	c.handler(c)
+	assert.Equal(t, "/api/*", c.Get("path"))
+	assert.Equal(t, "auth/logout", c.Param("*"))
+
+}
 
 func TestRouterMicroParam(t *testing.T) {
 	e := New()
