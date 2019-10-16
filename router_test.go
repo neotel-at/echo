@@ -640,7 +640,7 @@ func TestRouterMatchAnyMultiLevel(t *testing.T) {
 	assert.Equal(t, "/*", c.Get("path"))
 	assert.Equal(t, "noapi/users/jim", c.Param("*"))
 }
-func TestRouterMatchAnyMultiLevel2(t *testing.T) {
+func TestRouterMatchAnyMultiLevelWithPost(t *testing.T) {
 	e := New()
 	r := e.router
 	handler := func(c Context) error {
@@ -649,17 +649,45 @@ func TestRouterMatchAnyMultiLevel2(t *testing.T) {
 	}
 
 	// Routes
-	// e.GET("/api/auth/login", handler)
 	e.POST("/api/auth/login", handler)
 	e.POST("/api/auth/forgotPassword", handler)
 	e.Any("/api/*", handler)
 	e.Any("/*", handler)
 
+	// POST /api/auth/login shall choose login method
 	c := e.NewContext(nil, nil).(*context)
+	r.Find(http.MethodPost, "/api/auth/login", c)
+	c.handler(c)
+	assert.Equal(t, "/api/auth/login", c.Get("path"))
+	assert.Equal(t, "", c.Param("*"))
+
+	// GET /api/auth/login shall choose any route
+	// c = e.NewContext(nil, nil).(*context)
+	// r.Find(http.MethodGet, "/api/auth/login", c)
+	// c.handler(c)
+	// assert.Equal(t, "/api/*", c.Get("path"))
+	// assert.Equal(t, "auth/login", c.Param("*"))
+
+	// POST /api/auth/logout shall choose nearest any route
+	c = e.NewContext(nil, nil).(*context)
 	r.Find(http.MethodPost, "/api/auth/logout", c)
 	c.handler(c)
 	assert.Equal(t, "/api/*", c.Get("path"))
 	assert.Equal(t, "auth/logout", c.Param("*"))
+
+	// POST to /api/other/test shall choose nearest any route
+	c = e.NewContext(nil, nil).(*context)
+	r.Find(http.MethodPost, "/api/other/test", c)
+	c.handler(c)
+	assert.Equal(t, "/api/*", c.Get("path"))
+	assert.Equal(t, "other/test", c.Param("*"))
+
+	// GET to /api/other/test shall choose nearest any route
+	c = e.NewContext(nil, nil).(*context)
+	r.Find(http.MethodGet, "/api/other/test", c)
+	c.handler(c)
+	assert.Equal(t, "/api/*", c.Get("path"))
+	assert.Equal(t, "other/test", c.Param("*"))
 
 }
 
